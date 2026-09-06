@@ -27,8 +27,8 @@ end
 local function hookRemote(remote)
     -- Hook RemoteEvents (FireServer)
     if remote:IsA("RemoteEvent") then
-        local oldFireServer = remote.FireServer
-        remote.FireServer = function(self, ...)
+        local oldFireServer = remote:FireServer
+        remote:FireServer = function(self, ...)
             print("[FIRE] " .. remote:GetFullName() .. " | Args: " .. formatArgs(...))
             return oldFireServer(self, ...)
         end
