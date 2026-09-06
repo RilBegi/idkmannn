@@ -1,16 +1,15 @@
--- Simple Remote Spy (Console Only)
--- Based on SimpleSpy logic
+-- Simple Remote Spy (Console Only) - HookFunction Version
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Helper function to format arguments into a readable string
+-- Helper to format arguments into a readable string
 local function formatArgs(...)
     local args = {...}
     local strings = {}
     for i, v in pairs(args) do
-        if type(v) == "table" then
-            -- Simple table formatting
+        if typeof(v) == "table" then
+            -- Basic table dump
             local s = {}
             for k, v2 in pairs(v) do
                 table.insert(s, tostring(k) .. "=" .. tostring(v2))
@@ -23,35 +22,38 @@ local function formatArgs(...)
     return table.concat(strings, ", ")
 end
 
--- Core Hooking Logic
-local function hookRemote(remote)
-    -- Hook RemoteEvents (FireServer)
-    if remote:IsA("RemoteEvent") then
-        local oldFireServer = remote:FireServer
-        remote:FireServer = function(self, ...)
-            print("[FIRE] " .. remote:GetFullName() .. " | Args: " .. formatArgs(...))
-            return oldFireServer(self, ...)
-        end
-    end
+-- Create dummy instances to get the real function references
+local dummyEvent = Instance.new("RemoteEvent")
+local dummyFunction = Instance.new("RemoteFunction")
 
-    -- Hook RemoteFunctions (InvokeServer)
-    if remote:IsA("RemoteFunction") then
-        local oldInvokeServer = remote.InvokeServer
-        remote.InvokeServer = function(self, ...)
-            print("[INVOKE] " .. remote:GetFullName() .. " | Args: " .. formatArgs(...))
-            return oldInvokeServer(self, ...)
-        end
-    end
-end
+-- Store the original functions
+local oldFireServer = dummyEvent.FireServer
+local oldInvokeServer = dummyFunction.InvokeServer
 
--- 1. Hook existing remotes in the game
-for _, v in pairs(game:GetDescendants()) do
-    hookRemote(v)
-end
+-- Clean up the dummies
+dummyEvent:Destroy()
+dummyFunction:Destroy()
 
--- 2. Hook remotes that are added later (streaming service or late loading)
-game.DescendantAdded:Connect(function(v)
-    hookRemote(v)
+-- Define the new FireServer function
+local newFireServer = newcclosure(function(self, ...)
+    -- self is the RemoteEvent being fired
+    print("[FIRE SERVER] " .. self:GetFullName() .. " | Args: " .. formatArgs(...))
+    
+    -- Execute the original function so the game doesn't break
+    return oldFireServer(self, ...)
 end)
 
-print("Remote Spy Loaded: Listening for Remotes...")
+-- Define the new InvokeServer function
+local newInvokeServer = newcclosure(function(self, ...)
+    -- self is the RemoteFunction being invoked
+    print("[INVOKE SERVER] " .. self:GetFullName() .. " | Args: " .. formatArgs(...))
+    
+    -- Execute the original function
+    return oldInvokeServer(self, ...)
+end)
+
+-- Apply the hooks
+hookfunction(oldFireServer, newFireServer)
+hookfunction(oldInvokeServer, newInvokeServer)
+
+print("Remote Spy Loaded: Using hookfunction")
